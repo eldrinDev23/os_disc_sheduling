@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OS Scheduling Visualizer</title>
+
+<style>
+:root {
+    --wine: #7a1b39;
+    --rose: #d9ced1;
+    --dark: #2b1720;
+    --light: #fbf8f9;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--light);
+    color: var(--dark);
+    font-family: Arial, sans-serif;
+}
+
+header {
+    background: var(--wine);
+    color: white;
+    padding: 30px;
+    text-align: center;
+}
+
+header h1 {
+    margin: 0 0 10px;
+}
+
+main {
+    max-width: 1100px;
+    margin: 25px auto;
+    padding: 15px;
+}
+
+.tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+button {
+    padding: 11px 18px;
+    border: 1px solid var(--rose);
+    border-radius: 8px;
+    background: white;
+    color: var(--wine);
+    cursor: pointer;
+    font-weight: bold;
+}
+
+button:hover,
+button.active,
+.primary {
+    background: var(--wine);
+    color: white;
+}
+
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    border: 1px solid var(--rose);
+    box-shadow: 0 5px 20px #7a1b3910;
+}
+
+.panel {
+    display: none;
+}
+
+.panel.active {
+    display: block;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+label {
+    font-size: 13px;
+    font-weight: bold;
+}
+
+input, select {
+    padding: 11px;
+    border: 1px solid var(--rose);
+    border-radius: 7px;
+    width: 100%;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+}
+
+.notice {
+    color: #765e66;
+    margin-top: 12px;
+    font-size: 13px;
+}
+
+.error {
+    color: red;
+}
+
+.metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.metric {
+    background: #f2e9ec;
+    padding: 15px;
+    border-radius: 10px;
+}
+
+.metric span {
+    display: block;
+    font-size: 12px;
+    color: #765e66;
+}
+
+.metric strong {
+    display: block;
+    font-size: 22px;
+    color: var(--wine);
+    margin-top: 8px;
+}
+
+.result-grid {
+    display: grid;
+    grid-template-columns: 1.3fr 0.7fr;
+    gap: 15px;
+}
+
+canvas {
+    width: 100%;
+    height: 290px;
+}
+
+.sequence {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.pill {
+    background: #f2e9ec;
+    color: var(--wine);
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+}
+
+.pill.current {
+    background: var(--wine);
+    color: white;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+th, td {
+    padding: 12px;
+    border-bottom: 1px solid var(--rose);
+    text-align: left;
+    font-size: 13px;
+}
+
+th {
+    color: var(--wine);
+    background: #f2e9ec;
+}
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+.gantt {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    min-height: 90px;
+    padding: 12px 3px;
+}
+
+.gantt-block {
+    min-width: 55px;
+    flex: 1;
+    background: var(--wine);
+    color: white;
+    border-radius: 6px;
+    padding: 12px 5px;
+    text-align: center;
+}
+
+.gantt-block.active {
+    outline: 3px solid #d9ced1;
+}
+
+.gantt-block.idle {
+    background: #b8aab0;
+    color: #2b1720;
+}
+
+.hidden {
+    display: none !important;
+}
+
+@media(max-width:700px) {
+    .form-grid,
+    .result-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .metrics {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    main {
+        padding: 10px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>OS Scheduling Visualizer</h1>
+    <p>Interactive Operating System Scheduling Simulator</p>
+</header>
+
+<main>
+
+<div class="tabs">
+    <button class="tab active" data-tab="disk">Disk Scheduling</button>
+    <button class="tab" data-tab="cpu">CPU Scheduling</button>
+</div>
+
+<!-- DISK SCHEDULING -->
+
+<section id="disk" class="panel active">
+
+<div class="card">
+    <h2>Disk Scheduling Simulator</h2>
+
+    <div class="form-grid">
+
+        <div class="field">
+            <label>Disk Size</label>
+            <input id="diskSize" type="number" value="200" min="2">
+        </div>
+
+        <div class="field">
+            <label>Initial Head Position</label>
+            <input id="head" type="number" value="50" min="0">
+        </div>
+
+        <div class="field">
+            <label>Request Queue</label>
+            <input id="requests" value="82,170,43,140,24,16,190">
+        </div>
+
+        <div class="field">
+            <label>Direction</label>
+            <select id="direction">
+                <option value="right">Right</option>
+                <option value="left">Left</option>
+            </select>
+        </div>
+
+        <div class="field">
+            <label>Algorithm</label>
+            <select id="diskAlgorithm">
+                <option>FCFS</option>
+                <option>SSTF</option>
+                <option>SCAN</option>
+                <option>C-SCAN</option>
+                <option>LOOK</option>
+            </select>
+        </div>
+
+    </div>
+
+    <div class="actions">
+        <button class="primary" id="runDisk">Run Algorithm</button>
+        <button id="compareDisk">Compare All</button>
+        <button id="resetDisk">Reset</button>
+    </div>
+
+    <p id="diskMessage" class="notice"></p>
+</div>
+
+<div id="diskResults" class="hidden">
+
+    <div class="metrics">
+        <div class="metric">
+            <span>Algorithm</span>
+            <strong id="diskName">-</strong>
+        </div>
+
+        <div class="metric">
+            <span>Total Movement</span>
+            <strong id="movement">-</strong>
+        </div>
+
+        <div class="metric">
+            <span>Requests Served</span>
+            <strong id="served">-</strong>
+        </div>
+
+        <div class="metric">
+            <span>Average Movement</span>
+            <strong id="averageMove">-</strong>
+        </div>
+    </div>
+
+    <div class="result-grid">
+
+        <div class="card">
+            <h2>Disk Seek Graph</h2>
+            <canvas id="seekCanvas" width="900" height="300"></canvas>
+
+            <div class="actions">
+                <button id="diskPrev">Previous</button>
+                <button class="primary" id="diskNext">Next</button>
+                <button id="diskPlay">Auto Play</button>
+                <button id="diskStop">Pause</button>
+            </div>
+
+            <p id="diskStepLabel" class="notice"></p>
+        </div>
+
+        <div class="card">
+            <h2>Service Sequence</h2>
+            <div id="serviceSequence" class="sequence"></div>
+        </div>
+
+    </div>
+
+    <div class="card" id="comparisonCard">
+        <h2>Algorithm Comparison</h2>
+
+        <canvas id="compareCanvas" width="900" height="300"></canvas>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Algorithm</th>
+                        <th>Head Movement</th>
+                        <th>Average Movement</th>
+                    </tr>
+                </thead>
+                <tbody id="compareRows"></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+</section>
+
+<!-- CPU SCHEDULING -->
+
+<section id="cpu" class="panel">
+
+<div class="card">
+    <h2>CPU Scheduling Simulator</h2>
+
+    <p>Enter processes in the format: PID, Arrival Time, Burst Time.</p>
+
+    <div class="form-grid">
+
+        <div class="field">
+            <label>Processes</label>
+            <input id="processes"
+                value="P1,0,5; P2,1,3; P3,2,8; P4,3,6">
+        </div>
+
+        <div class="field">
+            <label>Algorithm</label>
+            <select id="cpuAlgorithm">
+                <option value="FCFS">FCFS</option>
+                <option value="RR">Round Robin</option>
+            </select>
+        </div>
+
+        <div class="field">
+            <label>Time Quantum</label>
+            <input id="quantum" type="number" value="2" min="1">
+        </div>
+
+    </div>
+
+    <div class="actions">
+        <button class="primary" id="runCpu">Run CPU Scheduling</button>
+        <button id="resetCpu">Reset</button>
+    </div>
+
+    <p id="cpuMessage" class="notice"></p>
+</div>
+
+<div id="cpuResults" class="hidden">
+
+    <div class="metrics">
+
+        <div class="metric">
+            <span>Algorithm</span>
+            <strong id="cpuName">-</strong>
+        </div>
+
+        <div class="metric">
+            <span>Average Waiting</span>
+            <strong id="avgWait">-</strong>
+        </div>
+
+        <div class="metric">
+            <span>Average Turnaround</span>
+            <strong id="avgTurn">-</strong>
+        </div>
+
+        <div class="metric">
+            <span>Total CPU Time</span>
+            <strong id="cpuTotal">-</strong>
+        </div>
+
+    </div>
+
+    <div class="card">
+        <h2>Gantt Chart</h2>
+
+        <div id="gantt" class="gantt"></div>
+
+        <div class="actions">
+            <button id="cpuPrev">Previous</button>
+            <button class="primary" id="cpuNext">Next</button>
+            <button id="cpuPlay">Auto Play</button>
+            <button id="cpuStop">Pause</button>
+        </div>
+
+        <p id="cpuStepLabel" class="notice"></p>
+    </div>
+
+    <div class="card">
+        <h2>Process Performance</h2>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Process</th>
+                        <th>Arrival</th>
+                        <th>Burst</th>
+                        <th>Completion</th>
+                        <th>Waiting</th>
+                        <th>Turnaround</th>
+                    </tr>
+                </thead>
+
+                <tbody id="cpuRows"></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+</section>
+
+</main>
+
+<script>
+
+// TAB SWITCHING
+
+document.querySelectorAll(".tab").forEach(button => {
+    button.onclick = () => {
+        document.querySelectorAll(".tab").forEach(b =>
+            b.classList.remove("active")
+        );
+
+        document.querySelectorAll(".panel").forEach(p =>
+            p.classList.remove("active")
+        );
+
+        button.classList.add("active");
+        document.getElementById(button.dataset.tab).classList.add("active");
+    };
+});
+
+const $ = id => document.getElementById(id);
+
+let diskData = null;
+let diskIndex = 0;
+let diskTimer = null;
+
+let cpuData = null;
+let cpuIndex = 0;
+let cpuTimer = null;
+
+// DISK INPUT VALIDATION
+
+function parseDisk() {
+
+    let size = Number($("diskSize").value);
+    let head = Number($("head").value);
+
+    let requests = $("requests").value
+        .split(",")
+        .map(Number);
+
+    if (!Number.isInteger(size) || size < 2)
+        throw Error("Enter a valid disk size.");
+
+    if (!Number.isInteger(head) || head < 0 || head >= size)
+        throw Error("Invalid head position.");
+
+    if (!requests.length ||
+        requests.some(x => !Number.isInteger(x) || x < 0 || x >= size))
+        throw Error("Invalid request queue.");
+
+    return {
+        size,
+        head,
+        requests,
+        direction: $("direction").value
+    };
+}
+
+// DISK ALGORITHMS
+
+function diskAlgorithms(d) {
+
+    let {size, head, requests, direction} = d;
+    let max = size - 1;
+
+    function make(name, path, served) {
+        let movement = 0;
+
+        for (let i = 1; i < path.length; i++) {
+            movement += Math.abs(path[i] - path[i - 1]);
+        }
+
+        return {name, path, served, movement};
+    }
+
+    // FCFS
+
+    let fcfs = make(
+        "FCFS",
+        [head, ...requests],
+        [...requests]
+    );
+
+    // SSTF
+
+    let remaining = [...requests];
+    let pos = head;
+    let order = [];
+
+    while (remaining.length) {
+
+        let best = 0;
+
+        for (let i = 1; i < remaining.length; i++) {
+            if (Math.abs(remaining[i] - pos) <
+                Math.abs(remaining[best] - pos)) {
+                best = i;
+            }
+        }
+
+        pos = remaining.splice(best, 1)[0];
+        order.push(pos);
+    }
+
+    let sstf = make("SSTF", [head, ...order], order);
+
+    let left = requests.filter(x => x < head).sort((a,b) => b-a);
+    let right = requests.filter(x => x >= head).sort((a,b) => a-b);
+
+    // SCAN
+
+    let path = [head];
+    let served = [];
+
+    if (direction === "right") {
+        path.push(...right, max, ...left);
+        served.push(...right, ...left);
+    } else {
+        path.push(...left, 0, ...right.slice().reverse());
+        served.push(...left, ...right.slice().reverse());
+    }
+
+    let scan = make("SCAN", path, served);
+
+    // C-SCAN
+
+    path = [head];
+    served = [];
+
+    if (direction === "right") {
+        path.push(...right);
+
+        if (left.length) {
+            path.push(max, 0, ...left);
+        }
+
+        served.push(...right, ...left);
+
+    } else {
+        path.push(...left);
+
+        if (right.length) {
+            path.push(0, max, ...right.slice().reverse());
+        }
+
+        served.push(...left, ...right.slice().reverse());
+    }
+
+    let cscan = make("C-SCAN", path, served);
+
+    // LOOK
+
+    path = [head];
+    served = [];
+
+    if (direction === "right") {
+        path.push(...right, ...left);
+        served.push(...right, ...left);
+    } else {
+        path.push(...left, ...right.slice().reverse());
+        served.push(...left, ...right.slice().reverse());
+    }
+
+    let look = make("LOOK", path, served);
+
+    return [fcfs, sstf, scan, cscan, look];
+}
+
+// DISK GRAPH
+
+function drawSeek() {
+
+    let canvas = $("seekCanvas");
+    let ctx = canvas.getContext("2d");
+
+    let w = canvas.width;
+    let h = canvas.height;
+
+    let pad = 50;
+    let max = diskData.size - 1;
+
+    ctx.clearRect(0, 0, w, h);
+
+    for (let i = 0; i <= 4; i++) {
+
+        let y = pad + (h - 2 * pad) * i / 4;
+
+        ctx.strokeStyle = "#d9ced1";
+        ctx.beginPath();
+        ctx.moveTo(pad, y);
+        ctx.lineTo(w - 20, y);
+        ctx.stroke();
+
+        ctx.fillStyle = "#765e66";
+        ctx.fillText(
+            Math.round(max * (1 - i / 4)),
+            10,
+            y + 4
+        );
+    }
+
+    function x(i) {
+        return pad + (w - 2 * pad) *
+            i / Math.max(1, diskData.path.length - 1);
+    }
+
+    function y(v) {
+        return h - pad - (h - 2 * pad) * v / max;
+    }
+
+    ctx.strokeStyle = "#7a1b39";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+
+    diskData.path.slice(0, diskIndex + 1).forEach((v, i) => {
+        if (i === 0) ctx.moveTo(x(i), y(v));
+        else ctx.lineTo(x(i), y(v));
+    });
+
+    ctx.stroke();
+
+    diskData.path.slice(0, diskIndex + 1).forEach((v, i) => {
+
+        ctx.beginPath();
+        ctx.arc(x(i), y(v), 5, 0, Math.PI * 2);
+
+        ctx.fillStyle = i === diskIndex
+            ? "#c14c73"
+            : "#7a1b39";
+
+        ctx.fill();
+    });
+}
+
+// UPDATE DISK VISUALIZATION
+
+function updateDisk() {
+
+    drawSeek();
+
+    $("diskStepLabel").textContent =
+        "Step " + diskIndex +
+        " | Head Position: " + diskData.path[diskIndex];
+
+    $("serviceSequence").innerHTML = "";
+
+    diskData.served.forEach((value, i) => {
+
+        let span = document.createElement("span");
+
+        span.className = "pill" +
+            (i < diskIndex ? " current" : "");
+
+        span.textContent = (i + 1) + ": " + value;
+
+        $("serviceSequence").appendChild(span);
+    });
+
+    $("diskPrev").disabled = diskIndex === 0;
+
+    $("diskNext").disabled =
+        diskIndex === diskData.path.length - 1;
+}
+
+// SHOW DISK RESULT
+
+function showDiskResult(result) {
+
+    stopDisk();
+
+    diskData = result;
+    diskIndex = 0;
+
+    $("diskResults").classList.remove("hidden");
+
+    $("diskName").textContent = result.name;
+    $("movement").textContent = result.movement;
+    $("served").textContent = result.served.length;
+
+    $("averageMove").textContent =
+        (result.movement / result.served.length).toFixed(2);
+
+    $("comparisonCard").classList.add("hidden");
+
+    updateDisk();
+}
+
+// RUN DISK ALGORITHM
+
+$("runDisk").onclick = () => {
+
+    try {
+
+        let data = parseDisk();
+        let algorithms = diskAlgorithms(data);
+
+        let selected = algorithms.find(
+            x => x.name === $("diskAlgorithm").value
+        );
+
+        showDiskResult(selected);
+
+        $("diskMessage").textContent =
+            selected.name + " completed successfully.";
+
+        $("diskMessage").className = "notice";
+
+    } catch (e) {
+
+        $("diskMessage").textContent = e.message;
+        $("diskMessage").className = "notice error";
+    }
+};
+
+// COMPARE DISK ALGORITHMS
+
+$("compareDisk").onclick = () => {
+
+    try {
+
+        let algorithms = diskAlgorithms(parseDisk());
+
+        showDiskResult(algorithms[0]);
+
+        $("comparisonCard").classList.remove("hidden");
+
+        $("compareRows").innerHTML = algorithms.map(a => `
+            <tr>
+                <td>${a.name}</td>
+                <td>${a.movement}</td>
+                <td>${(a.movement / a.served.length).toFixed(2)}</td>
+            </tr>
+        `).join("");
+
+        drawCompare(algorithms);
+
+    } catch (e) {
+
+        $("diskMessage").textContent = e.message;
+        $("diskMessage").className = "notice error";
+    }
+};
+
+// COMPARISON BAR CHART
+
+function drawCompare(algorithms) {
+
+    let canvas = $("compareCanvas");
+    let ctx = canvas.getContext("2d");
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    let max = Math.max(...algorithms.map(a => a.movement));
+
+    algorithms.forEach((a, i) => {
+
+        let x = 70 + i * 165;
+        let height = 220 * a.movement / max;
+        let y = 245 - height;
+
+        ctx.fillStyle = "#7a1b39";
+        ctx.fillRect(x, y, 90, height);
+
+        ctx.fillStyle = "#2b1720";
+        ctx.textAlign = "center";
+
+        ctx.fillText(a.movement, x + 45, y - 8);
+        ctx.fillText(a.name, x + 45, 270);
+    });
+}
+
+// DISK STEP CONTROLS
+
+function stopDisk() {
+    clearInterval(diskTimer);
+    diskTimer = null;
+}
+
+$("diskPrev").onclick = () => {
+    stopDisk();
+    diskIndex = Math.max(0, diskIndex - 1);
+    updateDisk();
+};
+
+$("diskNext").onclick = () => {
+    stopDisk();
+    diskIndex = Math.min(
+        diskData.path.length - 1,
+        diskIndex + 1
+    );
+    updateDisk();
+};
+
+$("diskPlay").onclick = () => {
+
+    stopDisk();
+
+    diskTimer = setInterval(() => {
+
+        if (diskIndex >= diskData.path.length - 1) {
+            stopDisk();
+            return;
+        }
+
+        diskIndex++;
+        updateDisk();
+
+    }, 650);
+};
+
+$("diskStop").onclick = stopDisk;
+
+$("resetDisk").onclick = () => {
+    stopDisk();
+    $("diskResults").classList.add("hidden");
+    $("diskMessage").textContent = "Reset completed.";
+};
+
+// CPU INPUT VALIDATION
+
+function parseProcesses() {
+
+    let rows = $("processes").value
+        .split(";")
+        .filter(x => x.trim());
+
+    let ids = new Set();
+
+    let processes = rows.map(row => {
+
+        let [id, at, bt] = row.split(",").map(x => x.trim());
+
+        at = Number(at);
+        bt = Number(bt);
+
+        if (!id || ids.has(id))
+            throw Error("Process IDs must be unique.");
+
+        if (!Number.isInteger(at) || at < 0 ||
+            !Number.isInteger(bt) || bt < 1)
+            throw Error("Invalid arrival or burst time.");
+
+        ids.add(id);
+
+        return {
+            id,
+            at,
+            bt,
+            remaining: bt
+        };
+    });
+
+    if (!processes.length)
+        throw Error("Enter at least one process.");
+
+    return processes.sort((a,b) => a.at - b.at);
+}
+
+// CPU SCHEDULING
+
+function scheduleCpu() {
+
+    let processes = parseProcesses();
+
+    let algorithm = $("cpuAlgorithm").value;
+    let quantum = Number($("quantum").value);
+
+    if (algorithm === "RR" &&
+        (!Number.isInteger(quantum) || quantum < 1)) {
+        throw Error("Invalid time quantum.");
+    }
+
+    let time = 0;
+    let segments = [];
+    let completion = {};
+
+    function add(id, start, end) {
+        if (end > start) {
+            segments.push({id, start, end});
+        }
+    }
+
+    // FCFS
+
+    if (algorithm === "FCFS") {
+
+        processes.forEach(p => {
+
+            if (time < p.at) {
+                add("Idle", time, p.at);
+                time = p.at;
+            }
+
+            let start = time;
+
+            time += p.bt;
+
+            add(p.id, start, time);
+
+            completion[p.id] = time;
+        });
+
+    }
+
+    // ROUND ROBIN
+
+    else {
+
+        let queue = [];
+        let i = 0;
+        let finished = 0;
+
+        while (finished < processes.length) {
+
+            while (i < processes.length &&
+                processes[i].at <= time) {
+                queue.push(processes[i++]);
+            }
+
+            if (!queue.length) {
+
+                let next = processes[i].at;
+
+                add("Idle", time, next);
+
+                time = next;
+
+                continue;
+            }
+
+            let p = queue.shift();
+
+            let run = Math.min(quantum, p.remaining);
+
+            let start = time;
+
+            time += run;
+
+            p.remaining -= run;
+
+            add(p.id, start, time);
+
+            while (i < processes.length &&
+                processes[i].at <= time) {
+                queue.push(processes[i++]);
+            }
+
+            if (p.remaining > 0) {
+                queue.push(p);
+            } else {
+                completion[p.id] = time;
+                finished++;
+            }
+        }
+    }
+
+    // CALCULATE WAITING AND TURNAROUND TIMES
+
+    let metrics = processes.map(p => {
+
+        let turnaround = completion[p.id] - p.at;
+
+        let waiting = turnaround - p.bt;
+
+        return {
+            ...p,
+            completion: completion[p.id],
+            turnaround,
+            waiting
+        };
+    });
+
+    let avgWait = metrics.reduce(
+        (s,p) => s + p.waiting, 0
+    ) / metrics.length;
+
+    let avgTurn = metrics.reduce(
+        (s,p) => s + p.turnaround, 0
+    ) / metrics.length;
+
+    return {
+        algorithm,
+        segments,
+        metrics,
+        avgWait,
+        avgTurn,
+        total: time
+    };
+}
+
+// UPDATE GANTT CHART
+
+function updateCpu() {
+
+    $("gantt").innerHTML = "";
+
+    cpuData.segments.forEach((s, i) => {
+
+        let block = document.createElement("div");
+
+        block.className = "gantt-block" +
+            (s.id === "Idle" ? " idle" : "") +
+            (i === cpuIndex - 1 ? " active" : "");
+
+        block.style.flex = Math.max(1, s.end - s.start);
+
+        block.innerHTML =
+            s.id + "<br>" + s.start + " - " + s.end;
+
+        $("gantt").appendChild(block);
+    });
+
+    $("cpuStepLabel").textContent =
+        "Step " + cpuIndex + " of " + cpuData.segments.length;
+
+    $("cpuPrev").disabled = cpuIndex === 0;
+
+    $("cpuNext").disabled =
+        cpuIndex === cpuData.segments.length;
+}
+
+// RUN CPU SCHEDULING
+
+$("runCpu").onclick = () => {
+
+    try {
+
+        stopCpu();
+
+        cpuData = scheduleCpu();
+
+        cpuIndex = 0;
+
+        $("cpuResults").classList.remove("hidden");
+
+        $("cpuName").textContent = cpuData.algorithm;
+
+        $("avgWait").textContent = cpuData.avgWait.toFixed(2);
+
+        $("avgTurn").textContent = cpuData.avgTurn.toFixed(2);
+
+        $("cpuTotal").textContent = cpuData.total;
+
+        $("cpuRows").innerHTML = cpuData.metrics.map(p => `
+            <tr>
+                <td>${p.id}</td>
+                <td>${p.at}</td>
+                <td>${p.bt}</td>
+                <td>${p.completion}</td>
+                <td>${p.waiting}</td>
+                <td>${p.turnaround}</td>
+            </tr>
+        `).join("");
+
+        updateCpu();
+
+        $("cpuMessage").textContent =
+            "CPU scheduling completed successfully.";
+
+    } catch (e) {
+
+        $("cpuMessage").textContent = e.message;
+        $("cpuMessage").className = "notice error";
+    }
+};
+
+// CPU STEP CONTROLS
+
+function stopCpu() {
+    clearInterval(cpuTimer);
+    cpuTimer = null;
+}
+
+$("cpuPrev").onclick = () => {
+    stopCpu();
+    cpuIndex = Math.max(0, cpuIndex - 1);
+    updateCpu();
+};
+
+$("cpuNext").onclick = () => {
+    stopCpu();
+    cpuIndex = Math.min(
+        cpuData.segments.length,
+        cpuIndex + 1
+    );
+    updateCpu();
+};
+
+$("cpuPlay").onclick = () => {
+
+    stopCpu();
+
+    cpuTimer = setInterval(() => {
+
+        if (cpuIndex >= cpuData.segments.length) {
+            stopCpu();
+            return;
+        }
+
+        cpuIndex++;
+
+        updateCpu();
+
+    }, 700);
+};
+
+$("cpuStop").onclick = stopCpu;
+
+$("resetCpu").onclick = () => {
+    stopCpu();
+    $("cpuResults").classList.add("hidden");
+    $("cpuMessage").textContent = "Reset completed.";
+};
+
+</script>
+
+</body>
+</html>
