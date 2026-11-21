@@ -49,7 +49,7 @@ It helps users understand how disk scheduling algorithms work by displaying the 
 ```text
 OS-Scheduling-Visualizer/
 │
-├── index.html
+├── disc_sheduling.html
 └── README.md
 ```
 
